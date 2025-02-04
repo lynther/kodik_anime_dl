@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Поиск</title>
+    <link rel="stylesheet" href="/public/css/bootstrap.min.css" />
+    <link rel="shortcut icon" href="/public/favicon.ico" type="image/x-icon" />
+    <style>
+      .centerScreen {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="centerScreen">
+      <div class="container">
+        <div class="row">
+          <div class="col">
+            <h1 class="text-center">Поиск</h1>
+            <form action="/search" method="post">
+              <div class="form-floating mb-3">
+                <input
+                  type="text"
+                  class="form-control"
+                  id="shikimoriID"
+                  name="shikimori_id"
+                />
+                <label>Shikimori ID:</label>
+                <div class="form-text">
+                  ID можно найти в ссылке страницы с аниме.
+                </div>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <button type="submit" class="btn btn-primary w-100">
+                    Поиск
+                  </button>
+                </div>
+                <div class="col">
+                  <button
+                    type="submit"
+                    class="btn btn-primary w-100"
+                    id="prevSearch"
+                  >
+                    <span class="badge text-bg-success"></span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/public/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const prevSearch = document.querySelector('#prevSearch');
+        const badge = prevSearch.querySelector('.badge');
+        const shikimoriId = localStorage.getItem('shikimoriId');
+        const animeTitle = localStorage.getItem('animeTitle');
+
+        if (!shikimoriId || !animeTitle) {
+          prevSearch.remove();
+          return;
+        }
+
+        badge.textContent = `${animeTitle}`;
+
+        prevSearch.addEventListener('click', () => {
+          document.querySelector('#shikimoriID').value = shikimoriId;
+        });
+      });
+      const centerScreen = document.querySelector('.centerScreen');
+
+      function isMobile() {
+        const regex =
+          /Mobi|Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+        return regex.test(navigator.userAgent);
+      }
+
+      if (isMobile()) {
+        centerScreen.classList.remove('centerScreen');
+        centerScreen.classList.add('mt-3');
+      }
+    </script>
+  </body>
+</html>

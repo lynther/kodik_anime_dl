@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Загрузка эпизода</title>
+    <link rel="stylesheet" href="/public/css/bootstrap.min.css" />
+    <link rel="shortcut icon" href="/public/favicon.ico" type="image/x-icon" />
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row">
+        <h1 class="mb-3 mt-2 fs-3">
+          Скачивание: {{ .animeTitle }} | Перевод: {{.translationTitle}}
+        </h1>
+        <h5>
+          Выберите эпизод который, хотите загрузить: (Всего {{.episodeCount}}):
+        </h5>
+        <div class="col">
+          <table class="table table-bordered table-responsive">
+            <thead>
+              <tr>
+                <td class="text-center align-middle fw-bold">№</td>
+                <td class="text-center align-middle fw-bold">
+                  Быстрая загрузка
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              {{range $episodeNumber := .episodes}}
+              <tr>
+                <td class="text-center align-middle">
+                  {{ $episodeNumber }}
+                </td>
+                <td class="text-center align-middle">
+                  <form action="/episode" method="post">
+                    <input
+                      class="d-none"
+                      type="text"
+                      name="episode_number"
+                      value="{{ $episodeNumber }}"
+                    />
+
+                    <button
+                      type="submit"
+                      class="btn btn-primary w-50 episode-btn"
+                      data-episode="{{ $episodeNumber }}"
+                    >
+                      Максимально доступное качество
+                    </button>
+                  </form>
+
+                  <div
+                    class="progress w-50 d-none mx-auto"
+                    style="height: 30px"
+                    data-episode="{{ $episodeNumber }}"
+                  >
+                    <div
+                      class="progress-bar progress-bar-striped"
+                      role="progressbar"
+                    ></div>
+                  </div>
+                </td>
+              </tr>
+              {{
+                end
+              }}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col">
+          <a class="btn btn-primary w-100 mb-2" href="/translations"
+            >Вернуться в выбор переводов</a
+          >
+          <a class="btn btn-primary w-100" href="/">Вернуться на главную</a>
+        </div>
+      </div>
+
+      <div
+        class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3"
+      >
+        <div
+          id="toast"
+          class="toast"
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          data-bs-autohide="true"
+        >
+          <div class="toast-header">
+            <strong class="me-auto"></strong>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="toast"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="toast-body"></div>
+        </div>
+      </div>
+    </div>
+    <script src="/public/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const toast = document.querySelector('#toast');
+      const toastI = bootstrap.Toast.getOrCreateInstance(toast);
+      const episodeButtons = document.querySelectorAll('.episode-btn');
+
+      let isCombineState = false;
+      let intervalId = null;
+      let isRunning = false;
+
+      const showToast = (title, message) => {
+        toast.querySelector('.toast-header strong').textContent = title;
+        toast.querySelector('.toast-body').textContent = message;
+        toastI.show();
+      };
+
+      const isMobile = () => {
+        const regex =
+          /Mobi|Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+        return regex.test(navigator.userAgent);
+      };
+
+      const disableButtons = () => {
+        episodeButtons.forEach(episodeBtn => (episodeBtn.disabled = true));
+      };
+
+      const enableButtons = () => {
+        episodeButtons.forEach(episodeBtn => (episodeBtn.disabled = false));
+      };
+
+      if (isMobile()) {
+        episodeButtons.forEach(episodeBtn => {
+          episodeBtn.classList.replace('w-50', 'w-75');
+        });
+
+        document.querySelectorAll('.progress').forEach(progress => {
+          progress.classList.replace('w-50', 'w-75');
+        });
+      }
+
+      // Download
+
+      const stopDownloadStatusInterval = (btn, progress) => {
+        btn.classList.remove('d-none');
+        btn.classList.add('btn-success');
+        progress.classList.add('d-none');
+
+        clearInterval(intervalId);
+        enableButtons();
+      };
+
+      const getDownloadStatus = async (
+        btn,
+        progressBarContainer,
+        progressBar
+      ) => {
+        const response = await fetch('/download/status');
+
+        if (!response.ok) {
+          showToast('ALERT', 'Не удаётся получить статус загрузки!');
+          stopDownloadStatusInterval(btn, progressBarContainer);
+          return;
+        }
+
+        const body = await response.json();
+
+        switch (body['state']) {
+          case 'combine': {
+            if (!isCombineState) {
+              progressBar.classList.add('progress-bar-animated');
+              isCombineState = true;
+            }
+          }
+        }
+
+        if (!body['is_running']) {
+          stopDownloadStatusInterval(btn, progressBarContainer);
+        }
+
+        const progressPercent = Math.round(
+          (body['progress'] / body['total']) * 100
+        );
+
+        progressBar.style.width = `${progressPercent}%`;
+        progressBar.textContent = `${progressPercent}%`;
+      };
+
+      function parseContentDisposition(contentDisposition) {
+        const parts = contentDisposition.split(';');
+        let filename = null;
+
+        for (const part of parts) {
+          const [key, value] = part.trim().split('=', 2);
+
+          if (key.toLowerCase() === 'filename*') {
+            const encoding = value.substring(0, value.indexOf("'"));
+            filename = decodeURIComponent(
+              value.substring(value.indexOf("'") + 1)
+            );
+
+            if (encoding && encoding.toLowerCase() !== 'utf-8') {
+              console.warn(`Unsupported encoding '${encoding}' in filename*`);
+            }
+          } else if (key.toLowerCase() === 'filename') {
+            filename = value.replace(/^"(.*)"$/, '$1');
+          }
+        }
+
+        return filename.slice(1, filename.length);
+      }
+
+      const episodeBtnClick = async e => {
+        isCombineState = false;
+
+        const btn = e.target;
+        const episodeNumber = btn.getAttribute('data-episode');
+
+        const progressBarContainer = document.querySelector(
+          `.progress[data-episode="${episodeNumber}"]`
+        );
+
+        const progressBar = progressBarContainer.querySelector('.progress-bar');
+        progressBar.classList.remove('progress-bar-animated');
+
+        progressBarContainer.classList.remove('d-none');
+        btn.classList.add('d-none');
+
+        setTimeout(() => {
+          disableButtons();
+
+          intervalId = setInterval(
+            () => getDownloadStatus(btn, progressBarContainer, progressBar),
+            500
+          );
+        }, 1000);
+      };
+
+      episodeButtons.forEach(episodeBtn => {
+        episodeBtn.addEventListener('click', episodeBtnClick);
+      });
+    </script>
+  </body>
+</html>

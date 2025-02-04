@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.animeTitle}}</title>
+    <link rel="stylesheet" href="/public/css/bootstrap.min.css" />
+    <link rel="shortcut icon" href="/public/favicon.ico" type="image/x-icon" />
+  </head>
+  <body>
+    {{$mediaType := .mediaType}}
+    <div class="container">
+      <div class="row">
+        <h1 class="mb-3 mt-2 fs-3 text-center">{{ .animeTitle }}</h1>
+        <div id="info" class="row mb-3 mx-auto">
+          <div id="poster-container" class="col">
+            <div class="d-flex">
+              <img
+                id="poster"
+                class="img-thumbnail"
+                src="{{.poster}}"
+                alt="Постер"
+                srcset=""
+              />
+            </div>
+          </div>
+
+          <div id="anime-info-container" class="col-auto">
+            <div id="anime-info" class="card" style="width: 18rem">
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                  Тип: {{if eq $mediaType "anime-serial"}} Сериал {{else}} Фильм
+                  {{ end }}
+                </li>
+                <li class="list-group-item">
+                  Длительность эпизода: {{.duration}} мин
+                </li>
+                <li class="list-group-item">Вышло: {{.airedOn}}</li>
+                <li class="list-group-item">
+                  Ссылка:
+                  <a href="{{.shikimoriUrl}}" target="_blank">shikimori</a>
+                </li>
+                <li class="list-group-item">...</li>
+                <li class="list-group-item">...</li>
+                <li class="list-group-item">...</li>
+                <li class="list-group-item">...</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <h5>Выберите перевод (Всего {{.totalTranslations}}):</h5>
+
+          <table class="table table-bordered table-responsive">
+            <thead>
+              <tr>
+                <th class="fw-bold text-center align-middle" style="width: 21%">
+                  Тип перевода
+                </th>
+                <th class="fw-bold text-center align-middle">Выбор перевода</th>
+              </tr>
+            </thead>
+            {{range $translationID, $translation := .translations}}
+
+            <tr>
+              <td class="text-center align-middle">
+                {{ $translation.Type }}
+              </td>
+              <td class="text-center align-middle">
+                <form action="/translation" method="post">
+                  <input
+                    class="d-none"
+                    type="text"
+                    name="translation_id"
+                    value="{{ $translationID }}"
+                  />
+                  <button id="translation-btn" class="btn btn-primary w-50">
+                    {{ $translation.Title }}
+                    {{if eq $mediaType "anime-serial"}} (Серий:
+                    {{ $translation.EpisodeCount }}) {{ end }}
+                  </button>
+                </form>
+              </td>
+            </tr>
+
+            {{
+              end
+            }}
+          </table>
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col">
+          <a class="btn btn-primary w-100" href="/">Вернуться на главную</a>
+        </div>
+      </div>
+      {{if eq $mediaType "anime"}}
+
+      <div
+        class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3"
+      >
+        <div
+          id="startDownloadToast"
+          class="toast"
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          data-bs-autohide="false"
+        >
+          <div class="toast-header">
+            <strong class="me-auto">Скачивание начнется автоматически</strong>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="toast"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="toast-body">
+            Процесс должен занять около 20-30 секунд для 25 минутной серии и
+            около 2-3 минут для 1.5 часового фильма.
+          </div>
+        </div>
+      </div>
+
+      {{ end }}
+    </div>
+    <script src="/public/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const posterContainer = document.querySelector('#poster-container');
+      const animeInfoContainer = document.querySelector(
+        '#anime-info-container'
+      );
+      const animeInfo = document.querySelector('#anime-info');
+      const info = document.querySelector('#info');
+
+      document.addEventListener('DOMContentLoaded', () => {
+        localStorage.setItem('shikimoriId', '{{.shikimoriID}}');
+        localStorage.setItem('animeTitle', '{{.animeTitleRu}}');
+      });
+
+      function isMobile() {
+        const regex =
+          /Mobi|Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+        return regex.test(navigator.userAgent);
+      }
+
+      if (isMobile()) {
+        posterContainer.classList.replace('col', 'col-auto');
+        posterContainer.classList.add('mx-auto', 'mb-3');
+        animeInfoContainer.classList.replace('col-auto', 'col');
+        animeInfo.classList.add('mx-auto');
+        animeInfo.style.width = '100%';
+
+        document.querySelectorAll('table button').forEach(btn => {
+          btn.classList.replace('w-50', 'w-75');
+        });
+      }
+    </script>
+  </body>
+</html>
